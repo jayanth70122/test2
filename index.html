@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Upload to Micro:bit</title>
+</head>
+<body>
+    <h1>Upload .hex file to BBC micro:bit</h1>
+    <input type="file" id="fileInput" accept=".hex">
+    <button id="uploadButton">Upload to Micro:bit</button>
+
+    <script>
+async function uploadFile() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a .hex file to upload.');
+        return;
+    }
+
+    try {
+        const microbit = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x0D28 }] });
+        await microbit.open();
+
+        // Log available configurations, interfaces, and endpoints
+        const configuration = microbit.configurations[0];
+        console.log('Configuration:', configuration);
+
+        for (const iface of configuration.interfaces) {
+            console.log(`Interface ${iface.interfaceNumber}:`, iface);
+
+            for (const alternate of iface.alternates) {
+                console.log(`  Alternate ${alternate.alternateSetting}:`, alternate);
+
+                for (const endpoint of alternate.endpoints) {
+                    console.log(`    Endpoint ${endpoint.endpointNumber} (${endpoint.direction}):`, endpoint);
+                }
+            }
+        }
+
+        // Claim the first interface
+        const interfaceNumber = 0;  // Adjust based on the correct interface number
+        await microbit.claimInterface(interfaceNumber);
+
+        // Select the correct alternate setting (if any)
+        const alternateSetting = 0;  // Adjust based on the correct alternate setting
+        await microbit.selectAlternateInterface(interfaceNumber, alternateSetting);
+
+        // Transfer data
+        const arrayBuffer = await file.arrayBuffer();
+        const data = new Uint8Array(arrayBuffer);
+        const endpointNumber = 2;  // Adjust based on the correct endpoint number
+        const chunkSize = 64;  // Adjust based on the device's max packet size
+
+        for (let i = 0; i < data.length; i += chunkSize) {
+            const chunk = data.slice(i, i + chunkSize);
+            await microbit.transferOut(endpointNumber, chunk);
+        }
+
+        await microbit.close();
+        alert('File uploaded successfully!');
+    } catch (error) {
+        console.error('Error during upload:', error);
+        alert('An error occurred during file upload.');
+    }
+}
+
+document.getElementById('uploadButton').addEventListener('click', uploadFile);
+
+    </script>
+</body>
+</html>
