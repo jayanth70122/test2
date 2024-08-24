@@ -19,6 +19,7 @@ async function uploadFile() {
     }
 
     try {
+        // Request the micro:bit device
         const microbit = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x0D28 }] });
         await microbit.open();
 
@@ -38,15 +39,15 @@ async function uploadFile() {
             }
         }
 
-        // Claim the first interface
-        const interfaceNumber = 0;  // Adjust based on the correct interface number
+        // Claim the first interface (adjust the interface number if needed)
+        const interfaceNumber = 0;
         await microbit.claimInterface(interfaceNumber);
 
         // Select the correct alternate setting (if any)
-        const alternateSetting = 0;  // Adjust based on the correct alternate setting
+        const alternateSetting = 0;
         await microbit.selectAlternateInterface(interfaceNumber, alternateSetting);
 
-        // Transfer data
+        // Transfer data to the micro:bit
         const arrayBuffer = await file.arrayBuffer();
         const data = new Uint8Array(arrayBuffer);
         const endpointNumber = 2;  // Adjust based on the correct endpoint number
@@ -66,7 +67,6 @@ async function uploadFile() {
 }
 
 document.getElementById('uploadButton').addEventListener('click', uploadFile);
-
     </script>
 </body>
 </html>
