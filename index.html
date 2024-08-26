@@ -1,71 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebUSB Example</title>
+    <title>Micro:bit WebSerial Uploader</title>
 </head>
-
 <body>
-    <h1>WebUSB Example with BBC micro:bit</h1>
-    <input type="file" id="fileInput" accept=".hex">
-    <button id="uploadButton">Upload to Device</button>
+    <h1>Micro:bit WebSerial Uploader</h1>
+    <button id="connectBtn">Connect to Micro:bit</button>
+    <input type="file" id="hexFile" accept=".hex">
+    <button id="uploadBtn">Upload to Micro:bit</button>
+    <p id="status">Status: Not connected</p>
+    <button id="flashBtn">Flash to Micro:bit</button>
 
-    <pre id="output"></pre>
 
-    <script>
-        document.getElementById('uploadButton').addEventListener('click', async () => {
-            const output = document.getElementById('output');
-            const fileInput = document.getElementById('fileInput');
-            const file = fileInput.files[0];
+    <script >
+        document.getElementById('flashBtn').addEventListener('click', async () => {
+    const fileInput = document.getElementById('hexFile');
+    if (!fileInput.files.length) {
+        alert('Please select a hex file first');
+        return;
+    }
 
-            if (!file) {
-                alert('Please select a .hex file to upload.');
-                return;
-            }
+    const file = fileInput.files[0];
+    const reader = new FileReader();
 
-            try {
-                const device = await navigator.usb.requestDevice({ filters: [{ vendorId: 0x0D28 }] }); // BBC micro:bit
-                output.textContent = `Device selected: ${device.productName}`;
-                await device.open();
-                output.textContent += `\nDevice opened.`;
-                await device.selectConfiguration(1);
-                output.textContent += `\nConfiguration selected.`;
-                await device.claimInterface(0);
-                output.textContent += `\nInterface claimed.`;
+    reader.onload = async (event) => {
+        const hexData = event.target.result;
 
-                const arrayBuffer = await file.arrayBuffer();
-                const data = new Uint8Array(arrayBuffer);
-                console.log('Available interfaces:');
-                device.configurations[0].interfaces.forEach(iface => {
-                    console.log(`Interface ${iface.interfaceNumber}:`);
-                    iface.alternates.forEach(alt => {
-                        console.log(`  Alternate Setting ${alt.alternateSetting}:`);
-                        alt.endpoints.forEach(endpoint => {
-                            console.log(`    Endpoint ${endpoint.endpointNumber} (Direction: ${endpoint.direction})`);
-                        });
-                    });
-                })
-                const endpointNumber = 2;
-                const chunkSize = 64;
+        try {
+            // Request the micro:bit device
+            const device = await navigator.usb.requestDevice({
+                filters: [{ vendorId: 0x0d28 }] // micro:bit vendor ID
+            });
 
-                for (let i = 0; i < data.length; i += chunkSize) {
-                    const chunk = data.slice(i, i + chunkSize);
-                    await device.transferOut(endpointNumber, chunk);
-                    output.textContent += `\nTransferred ${chunk.length} bytes.`;
-                }
+            await device.open();
+            await device.selectConfiguration(1);
+            await device.claimInterface(0);
 
-                await device.close();
-                output.textContent += `\nDevice closed.`;
-                alert('File uploaded successfully!');
-            } catch (error) {
-                output.textContent = `Error: ${error.message}`;
-                console.error(error);
-            }
-        });
+            // Flash the micro:bit with the hex file
+            const data = new TextEncoder().encode(hexData);
+            await device.transferOut(4, data);
+
+            document.getElementById('status').innerText = "Status: Program flashed successfully";
+            await device.close();
+        } catch (error) {
+            console.error('There was an error flashing the micro:bit:', error);
+            document.getElementById('status').innerText = "Status: Flashing failed";
+        }
+    };
+
+    reader.readAsArrayBuffer(file); // Use readAsArrayBuffer to get binary data
+});
 
     </script>
 </body>
-
 </html>
