@@ -26,21 +26,24 @@
     const reader = new FileReader();
 
     reader.onload = async (event) => {
-        const hexData = event.target.result;
+        const hexData = new Uint8Array(event.target.result);
 
         try {
-            // Request the micro:bit device
+            // Request the micro:bit DAPLink device
             const device = await navigator.usb.requestDevice({
-                filters: [{ vendorId: 0x0d28 }] // micro:bit vendor ID
+                filters: [{ vendorId: 0x0d28, productId: 0x0204 }] // DAPLink USB Interface
             });
 
             await device.open();
             await device.selectConfiguration(1);
             await device.claimInterface(0);
 
-            // Flash the micro:bit with the hex file
-            const data = new TextEncoder().encode(hexData);
-            await device.transferOut(4, data);
+            // Flash the micro:bit by sending the hex data
+            const packetSize = 64;
+            for (let i = 0; i < hexData.length; i += packetSize) {
+                const chunk = hexData.slice(i, i + packetSize);
+                await device.transferOut(1, chunk);
+            }
 
             document.getElementById('status').innerText = "Status: Program flashed successfully";
             await device.close();
